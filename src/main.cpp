@@ -28,6 +28,7 @@ std::string hasData(std::string s) {
   return "";
 }
 
+static double prev_cte=0;
 int main()
 {
   uWS::Hub h;
@@ -57,6 +58,20 @@ int main()
           * NOTE: Feel free to play around with the throttle and speed. Maybe use
           * another PID controller to control the speed!
           */
+          if( prev_cte != 0 )
+          {
+              double diff =  cte - prev_cte ;
+              steer_value = -0.1* cte   -2.0*diff;
+              prev_cte = cte;
+          }
+          else
+          {
+              steer_value = -0.1* cte;
+              prev_cte = cte;
+          }
+
+
+
           
           // DEBUG
           std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
