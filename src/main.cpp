@@ -28,6 +28,8 @@ std::string hasData(std::string s) {
   return "";
 }
 
+ static std::vector<double> ctelist;
+
 static double prev_cte=0;
 int main()
 {
@@ -36,7 +38,10 @@ int main()
   PID pid;
   // TODO: Initialize the pid variable.
 
+
   h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+
+
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -58,23 +63,28 @@ int main()
           * NOTE: Feel free to play around with the throttle and speed. Maybe use
           * another PID controller to control the speed!
           */
-          if( prev_cte != 0 )
-          {
-              double diff =  cte - prev_cte ;
-              steer_value = -0.1* cte   -2.0*diff;
-              prev_cte = cte;
-          }
-          else
-          {
-              steer_value = -0.1* cte;
-              prev_cte = cte;
-          }
+          static unsigned int sum =0;
+
+        if( ctelist.size() > 20)
+        {
+                ctelist.pop_back();       
+        }
+
+        for(int i=0; i< ctelist.size() ; i++ )
+                sum += ctelist[i];
+
+          double diff =  cte - prev_cte ;
+
+          steer_value = -0.3* cte   -3.0*diff  -0.001*sum;
+
+          //steer_value *=  speed/20;
+          prev_cte = cte;
 
 
 
           
           // DEBUG
-          std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
+          std::cout << "*** CTE: " << cte << "SPEED:" << speed <<  "angle:" << angle << " Steering Value: " << steer_value << std::endl;
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
