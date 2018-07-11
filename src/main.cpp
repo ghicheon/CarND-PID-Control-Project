@@ -34,10 +34,20 @@ int main()
 
   PID pid;
   // TODO: Initialize the pid variable.
-  pid.Init(0.3, 3.0, 0.0001);
+  pid.Init(1, 3.0, 0.0003);
 
   h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
 
+
+static int cnt=0;
+cnt++;
+std::cout << "*** cnt: " << cnt << std::endl;
+if( cnt > 100)
+{
+        std::string reset_msg = "42[\"reset\",{}]";
+        ws.send(reset_msg.data(), reset_msg.length(), uWS::OpCode::TEXT);
+cnt=0;
+}
 
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
