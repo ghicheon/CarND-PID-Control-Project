@@ -28,16 +28,13 @@ std::string hasData(std::string s) {
   return "";
 }
 
- static std::vector<double> ctelist;
-
-static double prev_cte=0;
 int main()
 {
   uWS::Hub h;
 
   PID pid;
   // TODO: Initialize the pid variable.
-
+  pid.Init(0.3, 3.0, 0.001);
 
   h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
 
@@ -63,24 +60,9 @@ int main()
           * NOTE: Feel free to play around with the throttle and speed. Maybe use
           * another PID controller to control the speed!
           */
-          static unsigned int sum =0;
 
-        if( ctelist.size() > 20)
-        {
-                ctelist.pop_back();       
-        }
-
-        for(int i=0; i< ctelist.size() ; i++ )
-                sum += ctelist[i];
-
-          double diff =  cte - prev_cte ;
-
-          steer_value = -0.3* cte   -3.0*diff  -0.001*sum;
-
-          //steer_value *=  speed/20;
-          prev_cte = cte;
-
-
+          pid.UpdateError(cte);
+          steer_value = pid.TotalError();
 
           
           // DEBUG
