@@ -4,6 +4,28 @@
 #include "PID.h"
 #include <math.h>
 
+//#define  DEBUG_MESSAGE
+
+#define NEW_START()   do {                                                                   \
+        double dpsum = (dp[0] + dp[1] + dp[2]);\
+        std::cout << "dpsum:" << dpsum << std::endl ;\
+        if( dpsum < 1)\
+        { \
+            std::cout << "All is done!!!!!!! dpsum"  << p[0] << p[1] << p[2] << std::endl ;\
+                exit(0);\
+        }\
+          stopped=0;\
+                           pid.Init( p[0] ,p[1],p[2]);                                       \
+                           std::string reset_msg = "42[\"reset\",{}]";                       \
+                           ws.send(reset_msg.data(), reset_msg.length(), uWS::OpCode::TEXT); \
+                      }                                                                      \
+                      while(0)
+
+#define PARAMETER_SHIFT() if(i==2) i=0; else i++;       std::cout << "i:" << i << std::endl;
+
+
+#define TEST_TIMEOUT     100
+
 // for convenience
 using json = nlohmann::json;
 
@@ -30,24 +52,135 @@ std::string hasData(std::string s) {
 
 int main()
 {
-  uWS::Hub h;
-
-  PID pid;
-  // TODO: Initialize the pid variable.
-  pid.Init(1, 3.0, 0.0003);
-
-  h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
-
-
+    uWS::Hub h;
+    
+    PID pid;
+    static int stopped=0;
+    
+static int i=0;//which parameter?
+static int stage=0;
 static int cnt=0;
-cnt++;
-std::cout << "*** cnt: " << cnt << std::endl;
-if( cnt > 100)
+    
+    static double p[3] = {0,0,0};
+    static double dp[3] = {1,1,1};
+    
+    static double besterr=9999999999999999.0;// just big number.  
+    
+    //TODO: Initialize the pid variable.
+    pid.Init( p[0] ,p[1],p[2]);
+    
+    h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+
+if(stage == 0)
 {
-        std::string reset_msg = "42[\"reset\",{}]";
-        ws.send(reset_msg.data(), reset_msg.length(), uWS::OpCode::TEXT);
-cnt=0;
+    
+    if(cnt == 0 )
+    {
+        std::cout << "i:" << i << "p before" << p[i] << std::endl;
+        p[i] += dp[i];
+        std::cout << "i:" << i << "p after" << p[i] << std::endl;
+    }
+    else if( cnt == TEST_TIMEOUT )
+    { 
+        //get absolute value! the lower, the better!
+        int err = pid.sum < 0  ? (-1)*pid.sum : pid.sum ; 
+
+        std::cout << "Twiddle(P:" << p[0] <<" ,I:" << p[1] <<" ,D:" << p[2] << ") err: " << err<< 
+                              "pid.sum:" << pid.sum << std::endl;
+        
+        if( stopped == 1 )//special case
+        {
+                p[i] -= dp[i];
+                PARAMETER_SHIFT();
+
+                cnt=0;
+                NEW_START(); //!!!!!!!
+        }
+        else
+        {
+                if( (err < besterr) )
+                {
+                     besterr = err;
+
+                     dp[i] *= 1.2;
+                     PARAMETER_SHIFT();
+
+                     cnt=0;
+                     NEW_START(); //!!!!!!!
+
+                }
+                else
+                {
+                std::cout << "i:" << i << "p before" << p[i] << std::endl;
+                    p[i] -= 2*dp[i] ; 
+                std::cout << "i:" << i << "p after" << p[i] << std::endl;
+
+                    stage =1;
+                    cnt=0;
+                    NEW_START(); //!!!!!!!
+                }
+        }
+    }
 }
+else if (stage == 1)
+{
+    if( cnt == TEST_TIMEOUT )
+    {
+        //get absolute value! the lower, the better!
+        int err = pid.sum < 0  ? (-1)*pid.sum : pid.sum ; 
+
+        std::cout << "Twiddle(P:" << p[0] <<" ,I:" << p[1] <<" ,D:" << p[2] << ") err: " << err<< std::endl;
+
+        if( stopped == 1 )//special case
+        {
+                p[i] += 2*dp[i] ; 
+                PARAMETER_SHIFT();
+
+                cnt=0;
+                NEW_START(); //!!!!!!!
+        }
+        else
+        {
+
+                if( (err < besterr)  && stopped != 1)
+                {
+                     besterr = err;
+
+                     dp[i] *= 1.2;
+                     PARAMETER_SHIFT();
+
+                     stage=0;
+                     cnt=0;
+                    NEW_START(); //!!!!!!!
+                }
+                else
+                {
+                std::cout << "i:" << i << "p before" << p[i] << std::endl;
+                     p[i] += dp[i];
+                std::cout << "i:" << i << "p after" << p[i] << std::endl;
+
+                     dp[i] *= 0.8;
+                     PARAMETER_SHIFT();
+
+                     stage=0;
+                     cnt=0;
+                    NEW_START(); //!!!!!!!
+                }
+         }
+    }
+
+}
+
+
+cnt++;
+    
+//        if( besterr < 20 )
+//        { 
+//            std::cout << "All is done!!!!!!! besterr"  << p[0] << p[1] << p[2] << std::endl ;
+//        
+//                exit(0);
+//        }
+///////////////////////////////////////////////////////////////
 
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -64,6 +197,8 @@ cnt=0;
           double speed = std::stod(j[1]["speed"].get<std::string>());
           double angle = std::stod(j[1]["steering_angle"].get<std::string>());
           double steer_value;
+
+
           /*
           * TODO: Calcuate steering value here, remember the steering value is
           * [-1, 1].
@@ -71,20 +206,30 @@ cnt=0;
           * another PID controller to control the speed!
           */
 
+if( cnt > 20   && speed < 0.05)
+{
+        stopped=1;
+        std::cout <<  "stopped!!!!!!!!!!!!!!!!!" <<std::endl;
+}
+else
+{
           pid.UpdateError(cte);
           steer_value = pid.TotalError();
+}
 
           
           // DEBUG
+#ifdef DEBUG_MESSAGE
           std::cout << "*** CTE: " << cte << "SPEED:" << speed <<  "angle:" << angle << " Steering Value: " << steer_value << std::endl;
 
-          std::cout << "***[data for graph] p_err:" << pid.p_error << "   i_err:" << pid.i_error <<  "   d_err:" << pid.d_error << std::endl;
+          //std::cout << "***[data for graph] p_err:" << pid.p_error << "   i_err:" << pid.i_error <<  "   d_err:" << pid.d_error << std::endl;
+#endif
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
           msgJson["throttle"] = 0.3;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          //std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {
