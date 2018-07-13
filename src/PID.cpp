@@ -25,6 +25,8 @@ void PID::Init(double kp, double ki, double kd) {
 
    sum =0;
    prev_cte=0;
+
+   abs_sum=0;
 }
 
 
@@ -33,6 +35,8 @@ void PID::UpdateError(double cte) {
     double diff=0;
 
     sum += cte;
+
+    abs_sum +=  (cte < 0) ? (-1*cte) : cte ;
     
     diff =  cte - prev_cte ;
     

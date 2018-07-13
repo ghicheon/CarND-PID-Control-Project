@@ -4,7 +4,7 @@
 #include "PID.h"
 #include <math.h>
 
-//#define  DEBUG_MESSAGE
+#define  DEBUG_MESSAGE
 
 #define NEW_START()   do {                                                                   \
         double dpsum = (dp[0] + dp[1] + dp[2]);\
@@ -83,7 +83,8 @@ if(stage == 0)
     else if( cnt == TEST_TIMEOUT )
     { 
         //get absolute value! the lower, the better!
-        int err = pid.sum < 0  ? (-1)*pid.sum : pid.sum ; 
+       // int err = pid.sum < 0  ? (-1)*pid.sum : pid.sum ; 
+        int err = pid.abs_sum;
 
         std::cout << "Twiddle(P:" << p[0] <<" ,I:" << p[1] <<" ,D:" << p[2] << ") err: " << err<< 
                               "pid.sum:" << pid.sum << std::endl;
@@ -127,7 +128,8 @@ else if (stage == 1)
     if( cnt == TEST_TIMEOUT )
     {
         //get absolute value! the lower, the better!
-        int err = pid.sum < 0  ? (-1)*pid.sum : pid.sum ; 
+        //int err = pid.sum < 0  ? (-1)*pid.sum : pid.sum ; 
+        int err = pid.abs_sum;
 
         std::cout << "Twiddle(P:" << p[0] <<" ,I:" << p[1] <<" ,D:" << p[2] << ") err: " << err<< std::endl;
 

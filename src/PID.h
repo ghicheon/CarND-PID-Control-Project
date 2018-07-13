@@ -17,6 +17,8 @@ public:
   double Ki;
   double Kd;
 
+  double abs_sum;
+
   double sum;
   double prev_cte;
 
