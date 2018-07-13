@@ -4,27 +4,37 @@
 #include "PID.h"
 #include <math.h>
 
-#define  DEBUG_MESSAGE
 
-#define NEW_START()   do {                                                                   \
+////////////////////////////
+//#define  RUN_NORMAL
+////////////////////////////
+
+//#define  DEBUG_MESSAGE
+
+#define TEST_TIMEOUT     500
+
+
+#define NEW_START()  \
+    do {                                                 \
         double dpsum = (dp[0] + dp[1] + dp[2]);\
         std::cout << "dpsum:" << dpsum << std::endl ;\
-        if( dpsum < 1)\
+        if( dpsum < 1.1)\
         { \
-            std::cout << "All is done!!!!!!! dpsum"  << p[0] << p[1] << p[2] << std::endl ;\
+            std::cout << "All is done!!!!!!! dpsum  "  << p[0]  << "," << p[1] <<  "," << p[2] << std::endl ;\
                 exit(0);\
         }\
-          stopped=0;\
-                           pid.Init( p[0] ,p[1],p[2]);                                       \
-                           std::string reset_msg = "42[\"reset\",{}]";                       \
-                           ws.send(reset_msg.data(), reset_msg.length(), uWS::OpCode::TEXT); \
-                      }                                                                      \
-                      while(0)
+        cnt=0;\
+        stopped=0;\
+        pid.Init( p[0] ,p[1],p[2]);                                       \
+        std::cout << "newstart:" << p[0] << " " << p[1] << " " << p[2] << std::endl ;\
+        std::string reset_msg = "42[\"reset\",{}]";                       \
+        ws.send(reset_msg.data(), reset_msg.length(), uWS::OpCode::TEXT); \
+    }                                                                      \
+    while(0)
 
 #define PARAMETER_SHIFT() if(i==2) i=0; else i++;       std::cout << "i:" << i << std::endl;
 
 
-#define TEST_TIMEOUT     100
 
 // for convenience
 using json = nlohmann::json;
@@ -55,126 +65,143 @@ int main()
     uWS::Hub h;
     
     PID pid;
-    static int stopped=0;
+
+static int stopped=0;
     
 static int i=0;//which parameter?
 static int stage=0;
 static int cnt=0;
-    
-    static double p[3] = {0,0,0};
-    static double dp[3] = {1,1,1};
+   //static double p[3] = {0.3,3.0,0.001};
+   static double p[3] = {0.3,3.0,0.001};
+   //static double p[3] = {2,1,0.0001};
+   //static double p[3] = {1.2001 ,4.5424 ,0.1025};
+
+
+    static double dp[3] = {0.5, 1 ,0.001};
     
     static double besterr=9999999999999999.0;// just big number.  
+
+#ifdef RUN_NORMAL
+stage=999;
+//p[0] =-7.23427 ;
+//p[1] = -6.86189 ;
+//p[2] = -6.86189;
+#endif
     
     //TODO: Initialize the pid variable.
     pid.Init( p[0] ,p[1],p[2]);
     
     h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
 
-if(stage == 0)
-{
+            if(stage == 0)
+            {
+                if(cnt == 0 )
+                {
+                    std::cout << "i:" << i << "p before" << p[i] << std::endl;
+                    p[i] += dp[i];
+                    std::cout << "i:" << i << "p after" << p[i] << std::endl;
+                }
+                else if( cnt == TEST_TIMEOUT )
+                { 
+                    //get absolute value! the lower, the better!
+                   // int err = pid.sum < 0  ? (-1)*pid.sum : pid.sum ; 
+                    int err = pid.abs_sum;
+            
+                    std::cout << "Twiddle(P:" << p[0] <<" ,I:" << p[1] <<" ,D:" << p[2] << ") err: " 
+                                           << err<< "pid.abs_sum:" << pid.abs_sum << std::endl;
+                    
+                    if( stopped == 1 )//special case
+                    {
+                            p[i] -= dp[i];
+
+                            if( p[i] < 0.0001 )  //lowest value. no minus value
+                                    p[i] = 0.0001;
+
+                            //dp[i] *=0.9; //XXXXXX
+                            PARAMETER_SHIFT();
+            
+                            NEW_START(); //!!!!!!!
+                    }
+                    else
+                    {
+                            if( err < besterr )
+                            {
+                                 besterr = err;
+            
+                                 dp[i] *= 1.2;
+                                 PARAMETER_SHIFT();
+            
+                                 NEW_START(); //!!!!!!!
+            
+                            }
+                            else
+                            {
+                                std::cout << "i:" << i << "p before" << p[i] << std::endl;
+
+                                p[i] -= 2*dp[i] ; 
+
+                                if( p[i] < 0.0001 )  //lowest value. no minus value
+                                        p[i] = 0.0001;
+
+                                std::cout << "i:" << i << "p after" << p[i] << std::endl;
+            
+                                stage =1;
+                                NEW_START(); //!!!!!!!
+                            }
+                    }
+                }
+            }
+            else if (stage == 1)
+            {
+                if( cnt == TEST_TIMEOUT )
+                {
+                    //get absolute value! the lower, the better!
+                    //int err = pid.sum < 0  ? (-1)*pid.sum : pid.sum ; 
+                    int err = pid.abs_sum;
+            
+                    std::cout << "Twiddle(P:" << p[0] <<" ,I:" << p[1] <<" ,D:" << p[2] << ") err: " 
+                                           << err<< "--------- pid.abs_sum:" << pid.abs_sum << std::endl;
+            
+                    if( stopped == 1 )//special case
+                    {
+                            p[i] += dp[i] ; 
+                            //dp[i] *=0.9; //XXXXXX
+                            PARAMETER_SHIFT();
+            
+                            NEW_START(); //!!!!!!!
+                    }
+                    else
+                    {
+            
+                            if( (err < besterr)  && stopped != 1)
+                            {
+                                 besterr = err;
+            
+                                 dp[i] *= 1.2;
+                                 PARAMETER_SHIFT();
+            
+                                 stage=0;
+                                NEW_START(); //!!!!!!!
+                            }
+                            else
+                            {
+                            std::cout << "i:" << i << "p before" << p[i] << std::endl;
+                                 p[i] += dp[i];
+                            std::cout << "i:" << i << "p after" << p[i] << std::endl;
+            
+                                 dp[i] *= 0.8;
+                                 PARAMETER_SHIFT();
+            
+                                 stage=0;
+                                NEW_START(); //!!!!!!!
+                            }
+                     }
+                }
+            
+            }
     
-    if(cnt == 0 )
-    {
-        std::cout << "i:" << i << "p before" << p[i] << std::endl;
-        p[i] += dp[i];
-        std::cout << "i:" << i << "p after" << p[i] << std::endl;
-    }
-    else if( cnt == TEST_TIMEOUT )
-    { 
-        //get absolute value! the lower, the better!
-       // int err = pid.sum < 0  ? (-1)*pid.sum : pid.sum ; 
-        int err = pid.abs_sum;
-
-        std::cout << "Twiddle(P:" << p[0] <<" ,I:" << p[1] <<" ,D:" << p[2] << ") err: " << err<< 
-                              "pid.sum:" << pid.sum << std::endl;
-        
-        if( stopped == 1 )//special case
-        {
-                p[i] -= dp[i];
-                PARAMETER_SHIFT();
-
-                cnt=0;
-                NEW_START(); //!!!!!!!
-        }
-        else
-        {
-                if( (err < besterr) )
-                {
-                     besterr = err;
-
-                     dp[i] *= 1.2;
-                     PARAMETER_SHIFT();
-
-                     cnt=0;
-                     NEW_START(); //!!!!!!!
-
-                }
-                else
-                {
-                std::cout << "i:" << i << "p before" << p[i] << std::endl;
-                    p[i] -= 2*dp[i] ; 
-                std::cout << "i:" << i << "p after" << p[i] << std::endl;
-
-                    stage =1;
-                    cnt=0;
-                    NEW_START(); //!!!!!!!
-                }
-        }
-    }
-}
-else if (stage == 1)
-{
-    if( cnt == TEST_TIMEOUT )
-    {
-        //get absolute value! the lower, the better!
-        //int err = pid.sum < 0  ? (-1)*pid.sum : pid.sum ; 
-        int err = pid.abs_sum;
-
-        std::cout << "Twiddle(P:" << p[0] <<" ,I:" << p[1] <<" ,D:" << p[2] << ") err: " << err<< std::endl;
-
-        if( stopped == 1 )//special case
-        {
-                p[i] += 2*dp[i] ; 
-                PARAMETER_SHIFT();
-
-                cnt=0;
-                NEW_START(); //!!!!!!!
-        }
-        else
-        {
-
-                if( (err < besterr)  && stopped != 1)
-                {
-                     besterr = err;
-
-                     dp[i] *= 1.2;
-                     PARAMETER_SHIFT();
-
-                     stage=0;
-                     cnt=0;
-                    NEW_START(); //!!!!!!!
-                }
-                else
-                {
-                std::cout << "i:" << i << "p before" << p[i] << std::endl;
-                     p[i] += dp[i];
-                std::cout << "i:" << i << "p after" << p[i] << std::endl;
-
-                     dp[i] *= 0.8;
-                     PARAMETER_SHIFT();
-
-                     stage=0;
-                     cnt=0;
-                    NEW_START(); //!!!!!!!
-                }
-         }
-    }
-
-}
-
-
-cnt++;
+    
+    cnt++;
     
 //        if( besterr < 20 )
 //        { 
@@ -211,7 +238,7 @@ cnt++;
 if( cnt > 20   && speed < 0.05)
 {
         stopped=1;
-        std::cout <<  "stopped!!!!!!!!!!!!!!!!!" <<std::endl;
+        //XXX std::cout <<  "stopped!!!!!!!!!!!!!!!!!" <<std::endl;
 }
 else
 {

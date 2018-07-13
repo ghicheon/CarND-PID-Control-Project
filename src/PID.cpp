@@ -27,6 +27,9 @@ void PID::Init(double kp, double ki, double kd) {
    prev_cte=0;
 
    abs_sum=0;
+
+
+        std::cout << kp << ki << kd << std::endl;
 }
 
 
