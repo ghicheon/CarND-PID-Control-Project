@@ -4,26 +4,26 @@
 #include "PID.h"
 #include <math.h>
 
+//after training, uncomment it.
+#define  RUN_NORMAL
 
-////////////////////////////
-//#define  RUN_NORMAL
-////////////////////////////
-
+//print some debug messages
 //#define  DEBUG_MESSAGE
 
-#define TEST_TIMEOUT     200
+//how long do we train?
+#define TRAINING_TIMEOUT     500
 
 
+//it makes the simulater restart.
 #define NEW_START()  \
     do {                                                 \
-        double dpsum = (dp[0] + dp[1] + dp[2]);\
-        if( dpsum < 0.3)\
+        double dpsum = (dp[0] + dp[1] + dp[2]); \
+        if( dpsum < 0.1)/*end condition*/  \
         { \
             std::cout << "All is done!!!!!!! p  "  << p[0]  << "," << p[1] <<  "," << p[2] << std::endl ;\
             std::cout << "All is done!!!!!!! dp "  << dp[0]  << "," << dp[1] <<  "," << dp[2] << std::endl ;\
-                exit(0);\
+            exit(0);\
         }\
-        \
         pid.Init( p[0] ,p[1],p[2]);\
         std::cout << "[NEW_START i:" << i << " stage:" << stage << "]     " << "p:" << p[0] << "/" << p[1] << "/" << p[2] <<  " /// dp:" << dp[0] << "/" << dp[1] << "/" << dp[2] << std::endl ;\
         \
@@ -37,7 +37,6 @@
     while(0)
 
 #define PARAMETER_SHIFT() if(i==2) i=0; else i++;    //   std::cout << "i:" << i << std::endl;
-//#define PARAMETER_SHIFT() 
 
 
 
@@ -71,26 +70,24 @@ int main()
     
     PID pid;
 
-static int stopped=0;
-static int off_line_error = 0;
-    
-static int i=0;//which parameter?
-static int stage=0;
-static int cnt=0;
-   //static double p[3] = {0.3,3.0,0.001};
-   static double p[3] = {0.3,3.0,0.001};
-   //static double p[3] = {2,1,0.0001};
-   //static double p[3] = {1.2001 ,4.5424 ,0.1025};
+    static int stopped=0;
+    static int off_line_error = 0;
+        
+    static int i=0;//which parameter? 0? 1? 2?
+    static int stage=0;  //there is 2 stages in twiddle algoritim.
+    static int cnt=0;   //it is increased when getting a data from simulator.
 
+    static double p[3] = {0.3,3.0,0.001}; //good
+    //static double p[3] = {1.2001 ,4.5424 ,0.1025};
 
+    //static double p[3] = {1,1,0.0001};
 
-    static double dp[3] = {0.5, 1 ,0.001};
-    
+    static double dp[3] = {1,1,0.0001};
+     
     static double besterr=9999999999999999.0;// just big number.  
 
-std::cout << "main called........!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
 #ifdef RUN_NORMAL
-stage=999;
+    stage=999;//just magic number for igroring training..
 //p[0] =-7.23427 ;
 //p[1] = -6.86189 ;
 //p[2] = -6.86189;
@@ -100,181 +97,164 @@ stage=999;
     pid.Init( p[0] ,p[1],p[2]);
     
     h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
-            //std::cout << stage << " " << cnt << std::endl;
+       if(stage == 0)
+       {
+           if(cnt == 0 )
+           {
+               //std::cout << "p[" << i << "] before:" << p[i] << std::endl;
+               p[i] += dp[i];
+               //std::cout << "p[" << i << "] after:" << p[i] << std::endl;
+           }
+           else if( cnt == TRAINING_TIMEOUT ) 
+           { 
+               //get absolute value! the lower, the better!
+               // int err = pid.sum < 0  ? (-1)*pid.sum : pid.sum ; 
+               double err = pid.abs_sum;
+       
+               std::cout << "     [result i:" << i << " stage:" << stage << "]     " 
+                          <<"p:" << p[0] << "/" << p[1] << "/" << p[2] << 
+                      " *** dp:" << dp[0] << "/" << dp[1] << "/" << dp[2]  << 
+                      " *** err:" << pid.abs_sum << std::endl;
+               
+               if( stopped == 1   || off_line_error == 1 )//critical error!!
+               {
+                   p[i] -= dp[i];
+                   dp[i] *= 0.95;
 
-            if(stage == 0)
-            {
-                if(cnt == 0 )
-                {
-                    std::cout << "p[" << i << "] before:" << p[i] << std::endl;
-                    p[i] += dp[i];
-                    std::cout << "p[" << i << "] after:" << p[i] << std::endl;
-                }
-                else if( cnt == TEST_TIMEOUT )
-                { 
-                    //get absolute value! the lower, the better!
-                   // int err = pid.sum < 0  ? (-1)*pid.sum : pid.sum ; 
-                    double err = pid.abs_sum;
-            
-                    std::cout << "     [result i:" << i << " stage:" << stage << "]     " 
-                               <<"p:" << p[0] << "/" << p[1] << "/" << p[2] << 
-                           " *** dp:" << dp[0] << "/" << dp[1] << "/" << dp[2]  << 
-                           " *** err:" << pid.abs_sum << std::endl;
-                    
-                    if( stopped == 1   || off_line_error == 1 )//critical error!!
-                    {
-                        p[i] -= dp[i];
-                        dp[i] *= 0.5;
-
-                        stage=0;
-                        PARAMETER_SHIFT();
-                        NEW_START(); //!!!!!!!
-                    }
-                    else if( err < besterr )
-                    {
-                         besterr = err;
+                   stage=0; //for real new start!
+                   PARAMETER_SHIFT();//next parameter
+                   NEW_START();  //!!!
+               }
+               else if( err < besterr )
+               {
+                    besterr = err;
     
-                         dp[i] *= 1.2;
+                    dp[i] *= 1.2;
 
-                         PARAMETER_SHIFT();
-                         NEW_START(); //!!!!!!!
+                    PARAMETER_SHIFT();
+                    NEW_START(); //!!!
     
-                    }
-                    else
-                    {
-                        p[i] -= 2*dp[i] ; 
+               }
+               else
+               {
+                   p[i] -= 2*dp[i] ; 
 
-                        stage =1;
-                        NEW_START(); //!!!!!!!
-                    }
-                }
-            }
-            else if (stage == 1)
-            {
-                if( cnt == TEST_TIMEOUT )
-                {
-                    //get absolute value! the lower, the better!
-                    //int err = pid.sum < 0  ? (-1)*pid.sum : pid.sum ; 
-                    int err = pid.abs_sum;
-            
-                    std::cout << "     [result i:" << i << " stage:" << stage << "]     " 
-                               <<"p:" << p[0] << "/" << p[1] << "/" << p[2] << 
-                           " *** dp:" << dp[0] << "/" << dp[1] << "/" << dp[2]  << 
-                           " *** err:" << pid.abs_sum << std::endl;
-            
-            
-                    if( stopped == 1   || off_line_error == 1 )//critical error!!
-                    {
-                        p[i] += dp[i];
-                        dp[i] *= 0.5;
+                   stage =1;
+                   NEW_START(); //!!!
+               }
+           }
+       }
+       else if (stage == 1)
+       {
+           if( cnt == TRAINING_TIMEOUT )
+           {
+               //get absolute value! the lower, the better!
+               //int err = pid.sum < 0  ? (-1)*pid.sum : pid.sum ; 
+               int err = pid.abs_sum;
+       
+               std::cout << "     [result i:" << i << " stage:" << stage << "]     " 
+                          <<"p:" << p[0] << "/" << p[1] << "/" << p[2] << 
+                      " *** dp:" << dp[0] << "/" << dp[1] << "/" << dp[2]  << 
+                      " *** err:" << pid.abs_sum << std::endl;
+       
+       
+               if( stopped == 1   || off_line_error == 1 )//critical error!!
+               {
+                   p[i] += dp[i];
+                   dp[i] *= 0.95;
+               }
+               else if( err < besterr )
+               {
+                   besterr = err;
+                   dp[i] *= 1.2;
+               }
+               else
+               {
+                   p[i] += dp[i];//set original value
+                   dp[i] *= 0.8;
+               }
 
-                        stage=0;
-                        PARAMETER_SHIFT();
-                        NEW_START(); //!!!!!!!
-                    }
-                    else if( err < besterr )
-                    {
-                        besterr = err;
+               stage=0; //for fresh new start!
+               PARAMETER_SHIFT();
+               NEW_START(); //!!!
+           }
+       
+       }
     
-                        dp[i] *= 1.2;
+       cnt++;
     
-                        stage=0;
+       //if( besterr < 20 )
+       //{ 
+       //    std::cout << "All is done!!!!!!! besterr"  << p[0] << p[1] << p[2] << std::endl ;
+       //
+       //        exit(0);
+       //}
 
-                        PARAMETER_SHIFT();
-                        NEW_START(); //!!!!!!!
-                    }
-                    else
-                    {
-                        p[i] += dp[i];//set original value
-    
-                        dp[i] *= 0.8;
-    
-                        stage=0;
+       // "42" at the start of the message means there's a websocket message event.
+       // The 4 signifies a websocket message
+       // The 2 signifies a websocket event
+       if (length && length > 2 && data[0] == '4' && data[1] == '2')
+       {
+         auto s = hasData(std::string(data).substr(0, length));
+         if (s != "") 
+         {
+           auto j = json::parse(s);
+           std::string event = j[0].get<std::string>();
+           if (event == "telemetry") 
+           {
+             // j[1] is the data JSON object
+             double cte = std::stod(j[1]["cte"].get<std::string>());
+             double speed = std::stod(j[1]["speed"].get<std::string>());
+             double angle = std::stod(j[1]["steering_angle"].get<std::string>());
+             double steer_value;
 
-                        PARAMETER_SHIFT();
-                        NEW_START(); //!!!!!!!
-                    }
-                }
-            
-            }
-    
-    
-    cnt++;
-    
-//        if( besterr < 20 )
-//        { 
-//            std::cout << "All is done!!!!!!! besterr"  << p[0] << p[1] << p[2] << std::endl ;
-//        
-//                exit(0);
-//        }
-///////////////////////////////////////////////////////////////
+             /*
+             * TODO: Calcuate steering value here, remember the steering value is
+             * [-1, 1].
+             * NOTE: Feel free to play around with the throttle and speed. Maybe use
+             * another PID controller to control the speed!
+             */
 
-    // "42" at the start of the message means there's a websocket message event.
-    // The 4 signifies a websocket message
-    // The 2 signifies a websocket event
-    if (length && length > 2 && data[0] == '4' && data[1] == '2')
-    {
-      auto s = hasData(std::string(data).substr(0, length));
-      if (s != "") {
-        auto j = json::parse(s);
-        std::string event = j[0].get<std::string>();
-        if (event == "telemetry") {
-          // j[1] is the data JSON object
-          double cte = std::stod(j[1]["cte"].get<std::string>());
-          double speed = std::stod(j[1]["speed"].get<std::string>());
-          double angle = std::stod(j[1]["steering_angle"].get<std::string>());
-          double steer_value;
+             if( cnt > 20   && speed < 0.05)
+             {
+                     if( stopped == 0) //print only 1 time.
+                             std::cout <<  "stopped!!!!!!!!!!!!!!!!!" ;
 
+                     stopped=1;
+             }
+             else if( cte > 3 || cte < -3 )
+             {
+                     if( off_line_error == 0) //print only 1 time.
+                             std::cout <<  "off_line_error!!!!!!!!!!!!!!!!!" ;
 
-          /*
-          * TODO: Calcuate steering value here, remember the steering value is
-          * [-1, 1].
-          * NOTE: Feel free to play around with the throttle and speed. Maybe use
-          * another PID controller to control the speed!
-          */
+                     off_line_error = 1;
+             }
+             else
+             {
+                       pid.UpdateError(cte);
+                       steer_value = pid.TotalError();
+             }
 
-if( cnt > 20   && speed < 0.05)
-{
-        if( stopped == 0) //print only 1 time.
-                std::cout <<  "stopped!!!!!!!!!!!!!!!!!" ;
-
-        stopped=1;
-}
-else if( cte > 3 || cte < -3 )
-{
-        if( off_line_error == 0) //print only 1 time.
-                std::cout <<  "off_line_error!!!!!!!!!!!!!!!!!" ;
-
-        off_line_error = 1;
-}
-else
-{
-          pid.UpdateError(cte);
-          steer_value = pid.TotalError();
-}
-
-          
-          // DEBUG
 #ifdef DEBUG_MESSAGE
-          std::cout << "*** CTE: " << cte  ;
-          //std::cout << "*** CTE: " << cte << "SPEED:" << speed <<  "angle:" << angle << " Steering Value: " << steer_value << std::endl;
-
-          //std::cout << "***[data for graph] p_err:" << pid.p_error << "   i_err:" << pid.i_error <<  "   d_err:" << pid.d_error << std::endl;
+             std::cout << "*** CTE: " << cte  ;
+             //std::cout << "*** CTE: " << cte << "SPEED:" << speed <<  "angle:" << angle << " Steering Value: " << steer_value << std::endl;
+             //std::cout << "***[data for graph] p_err:" << pid.p_error << "   i_err:" << pid.i_error <<  "   d_err:" << pid.d_error << std::endl;
 #endif
-
-          json msgJson;
-          msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.3;
-          auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          //std::cout << msg << std::endl;
-          ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-        }
-      } else {
-        // Manual driving
-        std::string msg = "42[\"manual\",{}]";
-        ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-      }
-    }
+             json msgJson;
+             msgJson["steering_angle"] = steer_value;
+             msgJson["throttle"] = 0.3;
+             auto msg = "42[\"steer\"," + msgJson.dump() + "]";
+             //std::cout << msg << std::endl;
+             ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+           }
+         } 
+         else 
+         {
+           // Manual driving
+           std::string msg = "42[\"manual\",{}]";
+           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+         }
+       }
   });
 
   // We don't need this since we're not using HTTP but if it's removed the program
