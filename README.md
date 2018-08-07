@@ -52,6 +52,7 @@ I edited err_plot.py  like this.
  plt.show()
 ```
 
-following graph is the result.
+following graph is the result.     
+
 ![Alt text](./err_plot_of_twiddle.png  "error graph")
 
