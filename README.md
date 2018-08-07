@@ -4,8 +4,8 @@ Self-Driving Car Engineer Nanodegree Program
 
 ---
 
-## Build for driving normally(without training)  - default
-uncomment below line in main.cpp        
+## Build for driving normally(without training)  - it's default
+Uncomment below line in main.cpp        
   #define  RUN_NORMAL        
 
 1. Clone this repo.
@@ -17,21 +17,30 @@ uncomment below line in main.cpp
 comment below line like this.   
   //#define  RUN_NORMAL
 
-following build processure is the same as before.     
+Following build processure is the same as before.     
 
-you may save the debug output like this.  
+You may save the debug output like this.  
 ./pid > training_out.txt
+
+
+
+## Reflection
+P means the distance between correct line and my car. Using it,,we can reduce the error by changing steering angle. However, we may encounter zigzag driving because there must be some delay in getting angle and giving the command to the car. D controler is trying to solve this problem. It use the difference between previous error and current one.  
+Sometimes, cars  steering angle system has some bug.Even if we gave the correct angle, the car may move uncorrectly, I controler figure out this problem. It sums up all errors and use it to fix the problem.     
+
+I used twiddle and manual tuning. You can be sure that my twiddle algorithm works by following graph. The error is getting smaller.  However, I found out it's not easy to find optimal solution by twiddle in this project(yeah.. maybe there must be a better way...). Because the car is sometimes stopped and driving in the forest or water.
+I found the optimal parameter by manual tuning.   
+When I was implementing twiddle,I had a hard time to work with the simulator. I tried to leave enough comments in my code.    enjoy!
 
 
 ## training error graph
 I saved output in training_out.txt   
-I extracted error value and saved err_plot.py.   
+I extracted error value and saved err_plot.py     
 
-cat training_out.txt | grep "err:" | sed 's/.*err://g' > err_plot.py
+cat training_out.txt | grep "err:" | sed 's/.*err://g' > err_plot.py     
 
 I edited err_plot.py  like this.   
 
- 
 
 ```python
  import matplotlib.pyplot as plt
@@ -45,3 +54,4 @@ I edited err_plot.py  like this.
 
 following graph is the result.
 ![Alt text](./err_plot_of_twiddle.png  "error graph")
+
