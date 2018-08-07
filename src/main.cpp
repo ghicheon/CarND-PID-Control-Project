@@ -4,8 +4,6 @@
 #include "PID.h"
 #include <math.h>
 
-//after training, 
-
 /************************************************** 
  * for running normally, uncomment it!!
  * for traing, comment it.
