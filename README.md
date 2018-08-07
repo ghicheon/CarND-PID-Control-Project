@@ -1,98 +1,47 @@
 # CarND-Controls-PID
 Self-Driving Car Engineer Nanodegree Program
+,
 
 ---
 
-## Dependencies
-
-* cmake >= 3.5
- * All OSes: [click here for installation instructions](https://cmake.org/install/)
-* make >= 4.1(mac, linux), 3.81(Windows)
-  * Linux: make is installed by default on most Linux distros
-  * Mac: [install Xcode command line tools to get make](https://developer.apple.com/xcode/features/)
-  * Windows: [Click here for installation instructions](http://gnuwin32.sourceforge.net/packages/make.htm)
-* gcc/g++ >= 5.4
-  * Linux: gcc / g++ is installed by default on most Linux distros
-  * Mac: same deal as make - [install Xcode command line tools]((https://developer.apple.com/xcode/features/)
-  * Windows: recommend using [MinGW](http://www.mingw.org/)
-* [uWebSockets](https://github.com/uWebSockets/uWebSockets)
-  * Run either `./install-mac.sh` or `./install-ubuntu.sh`.
-  * If you install from source, checkout to commit `e94b6e1`, i.e.
-    ```
-    git clone https://github.com/uWebSockets/uWebSockets 
-    cd uWebSockets
-    git checkout e94b6e1
-    ```
-    Some function signatures have changed in v0.14.x. See [this PR](https://github.com/udacity/CarND-MPC-Project/pull/3) for more details.
-* Simulator. You can download these from the [project intro page](https://github.com/udacity/self-driving-car-sim/releases) in the classroom.
-
-There's an experimental patch for windows in this [PR](https://github.com/udacity/CarND-PID-Control-Project/pull/3)
-
-## Basic Build Instructions
+## Build for driving normally(without training)  - default
+uncomment below line in main.cpp        
+  #define  RUN_NORMAL        
 
 1. Clone this repo.
 2. Make a build directory: `mkdir build && cd build`
 3. Compile: `cmake .. && make`
 4. Run it: `./pid`. 
 
-Tips for setting up your environment can be found [here](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/0949fca6-b379-42af-a919-ee50aa304e6a/lessons/f758c44c-5e40-4e01-93b5-1a82aa4e044f/concepts/23d376c7-0195-4276-bdf0-e02f1f3c665d)
+## Build for training 
+comment below line like this.   
+  //#define  RUN_NORMAL
 
-## Editor Settings
+following build processure is the same as before.     
 
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
+you may save the debug output like this.  
+./pid > training_out.txt
 
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
 
-## Code Style
+## training error graph
+I saved output in training_out.txt   
+I extracted error value and saved err_plot.py.   
 
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
+cat training_out.txt | grep "err:" | sed 's/.*err://g' > err_plot.py
 
-## Project Instructions and Rubric
+I edited err_plot.py  like this.   
 
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
+ 
 
-More information is only accessible by people who are already enrolled in Term 2
-of CarND. If you are enrolled, see [the project page](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/e8235395-22dd-4b87-88e0-d108c5e5bbf4/concepts/6a4d8d42-6a04-4aa6-b284-1697c0fd6562)
-for instructions and the project rubric.
+```python
+ import matplotlib.pyplot as plt
 
-## Hints!
+ 
+ d =[ 84.6093, 109.133, 201.554, 134.647, 234.211, 143.018, 200.184, 215.359, 177.552, 194.005, 166.131, 109.276, 203.056, 158.425, 204.677, 179.055, 112.416, 161.476, 118.412, 115.857, 135.287, 162.108, 113.406, 115.918, 111.011, 100.813, 113.42, 186.36, 107.591, 109.98, 106.934, 97.2728, 110.032, 145.151, 112.587, 112.937, 123.356, 94.7988, 127.151, 138.957, 124.147, 117.283, 113.875, 94.2549, 117.556, 151.202, 120.664, 115.101, 114.233, 95.9766, 119.674, 143.055, 111.723, 111.097, 114.108, 99.9551, 112.907, 134.444, 115.499, 116.069, 114.042, 98.3953, 112.84, 119.484, 110.899, 110.909, 113.326, 98.2685, 113.926, 118.04, 111.615, 111.151, 116.227, 102.876, 112.067, 115.324, 113.782, 113.915, 115.734, 96.4004, 115.15, 118.663, 111.943, 116.83, 117.178, 102.82, 110.529, 115.891, 118.811, 116.422, 126.209, 98.5254, 110.181, 117.495 ]
+ 
+ plt.plot(d)
+ plt.show()
+```
 
-* You don't have to follow this directory structure, but if you do, your work
-  will span all of the .cpp files here. Keep an eye out for TODOs.
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to we ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
-
+following graph is the result.
+![Alt text](./err_plot_of_twiddle.png  "error graph")
