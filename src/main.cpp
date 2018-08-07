@@ -4,7 +4,12 @@
 #include "PID.h"
 #include <math.h>
 
-//after training, uncomment it.
+//after training, 
+
+/************************************************** 
+ * for running normally, uncomment it!!
+ * for traing, comment it.
+ **************************************************/
 #define  RUN_NORMAL
 
 //print some debug messages
@@ -72,27 +77,26 @@ int main()
 
     static int stopped=0;
     static int off_line_error = 0;
-        
     static int i=0;//which parameter? 0? 1? 2?
-    static int stage=0;  //there is 2 stages in twiddle algoritim.
+
+    /*  [twiddle stages] 
+     *   - there is 2 stages in twiddle algoritim.  0 and 1
+     *   - 999 is just for normal test. I mean training is ignored when 999.
+     */
+    static int stage=999;  
     static int cnt=0;   //it is increased when getting a data from simulator.
-
-    static double p[3] = {0.3,3.0,0.001}; //good
-    //static double p[3] = {1.2001 ,4.5424 ,0.1025};
-
-    //static double p[3] = {1,1,0.0001};
-
     static double dp[3] = {1,1,0.0001};
-     
     static double besterr=9999999999999999.0;// just big number.  
 
-#ifdef RUN_NORMAL
-    stage=999;//just magic number for igroring training..
-//p[0] =-7.23427 ;
-//p[1] = -6.86189 ;
-//p[2] = -6.86189;
+#ifdef  RUN_NORMAL
+    static double p[3] = {0.3,3.0,0.001}; //good. found it manually.
+#else
+    static double p[3] = {1,1,0.001}; //initial values for training!
+
+    stage=0;//for training!
 #endif
-    
+
+
     //TODO: Initialize the pid variable.
     pid.Init( p[0] ,p[1],p[2]);
     
